@@ -3,20 +3,16 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'android-app/**'
-      - '.github/workflows/main.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar codigo do repositorio
+      - name: Baixar projeto
         uses: actions/checkout@v4
 
-      - name: Configurar Java
+      - name: Instalar Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -25,20 +21,30 @@ jobs:
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Verificar arquivos Android
+      - name: Instalar componentes Android
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Verificar projeto
         run: |
-          echo "Verificando projeto Android..."
           ls -la
-          test -d android-app || (echo "ERRO: pasta android-app nao encontrada" && exit 1)
-          find android-app -maxdepth 3 -type f | head -100
+          ls -la android-app
+          find android-app -name gradlew -o -name build.gradle -o -name build.gradle.kts
 
       - name: Compilar APK
         working-directory: android-app
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug
+          elif [ -f build.gradle ]; then
+            gradle assembleDebug
+          else
+            echo "Nao encontrei o arquivo de compilacao Gradle esperado."
+            exit 1
+          fi
 
-      - name: Publicar APK
+      - name: Disponibilizar APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: MarkLV-Android-APK
